@@ -1,57 +1,87 @@
 package com.fulfilment.application.monolith.warehouses.adapters.restapi;
 
-import com.fulfilment.application.monolith.warehouses.adapters.database.WarehouseRepository;
+import com.fulfilment.application.monolith.warehouses.domain.ports.ArchiveWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.ports.ReplaceWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.usecases.FindWarehouseUseCase;
 import com.warehouse.api.WarehouseResource;
 import com.warehouse.api.beans.Warehouse;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+
 import java.util.List;
 
 @RequestScoped
 public class WarehouseResourceImpl implements WarehouseResource {
 
-  @Inject private WarehouseRepository warehouseRepository;
+    @Inject private FindWarehouseUseCase findWarehouseUseCase;
+    @Inject private CreateWarehouseOperation createWarehouse;
+    @Inject private ReplaceWarehouseOperation replaceWarehouseOperation;
+    @Inject private ArchiveWarehouseOperation archiveWarehouseOperation;
 
-  @Override
-  public List<Warehouse> listAllWarehousesUnits() {
-    return warehouseRepository.getAll().stream().map(this::toWarehouseResponse).toList();
-  }
+    @Override
+    public List<Warehouse> listAllWarehousesUnits() {
+        return findWarehouseUseCase.findAll().stream().map(this::toWarehouseResponse).toList();
+    }
 
-  @Override
-  public Warehouse createANewWarehouseUnit(@NotNull Warehouse data) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'createANewWarehouseUnit'");
-  }
+    @Override
+    public Warehouse createANewWarehouseUnit(@NotNull Warehouse data) {
+        if (data.getStock() < 0) {
+            throw new WebApplicationException("Warehouse stock must be a non-negative integer",
+                    Response.Status.BAD_REQUEST);
+        }
+        if (data.getCapacity() <= 0) {
+            throw new WebApplicationException("Warehouse capacity must be greater than zero",
+                    Response.Status.BAD_REQUEST);
+        }
+        var response = createWarehouse.create(toWarehouse(data));
 
-  @Override
-  public Warehouse getAWarehouseUnitByID(String id) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'getAWarehouseUnitByID'");
-  }
+        return toWarehouseResponse(response);
+    }
 
-  @Override
-  public void archiveAWarehouseUnitByID(String id) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'archiveAWarehouseUnitByID'");
-  }
+    @Override
+    public Warehouse getAWarehouseUnitByID(long id) {
+        var response = findWarehouseUseCase.findById(id);
+        return toWarehouseResponse(response);
+    }
 
-  @Override
-  public Warehouse replaceTheCurrentActiveWarehouse(
-      String businessUnitCode, @NotNull Warehouse data) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException(
-        "Unimplemented method 'replaceTheCurrentActiveWarehouse'");
-  }
+    @Override
+    public void archiveAWarehouseUnitByID(long id) {
+        archiveWarehouseOperation.archive(id);
+    }
 
-  private Warehouse toWarehouseResponse(
-      com.fulfilment.application.monolith.warehouses.domain.models.Warehouse warehouse) {
-    var response = new Warehouse();
-    response.setBusinessUnitCode(warehouse.businessUnitCode);
-    response.setLocation(warehouse.location);
-    response.setCapacity(warehouse.capacity);
-    response.setStock(warehouse.stock);
+    @Override
+    public Warehouse replaceTheCurrentActiveWarehouse(String businessUnitCode, @NotNull Warehouse data) {
+        if (data.getStock() < 0) {
+            throw new WebApplicationException("Warehouse stock must be a non-negative integer",
+                    Response.Status.BAD_REQUEST);
+        }
+        if (data.getCapacity() <= 0) {
+            throw new WebApplicationException("Warehouse capacity must be greater than zero",
+                    Response.Status.BAD_REQUEST);
+        }
+        var response = replaceWarehouseOperation.replace(businessUnitCode, toWarehouse(data));
 
-    return response;
-  }
+        return toWarehouseResponse(response);
+    }
+
+    private Warehouse toWarehouseResponse(
+            com.fulfilment.application.monolith.warehouses.domain.models.Warehouse warehouse) {
+        var response = new Warehouse();
+        response.setBusinessUnitCode(warehouse.businessUnitCode());
+        response.setLocation(warehouse.location());
+        response.setCapacity(warehouse.capacity());
+        response.setStock(warehouse.stock());
+
+        return response;
+    }
+
+    private com.fulfilment.application.monolith.warehouses.domain.models.Warehouse toWarehouse(Warehouse warehouse) {
+        return new com.fulfilment.application.monolith.warehouses.domain.models.Warehouse(
+                warehouse.getBusinessUnitCode(), warehouse.getLocation(), warehouse.getCapacity(),
+                warehouse.getStock());
+    }
 }

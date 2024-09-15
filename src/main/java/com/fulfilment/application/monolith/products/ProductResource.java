@@ -40,7 +40,7 @@ public class ProductResource {
   public Product getSingle(Long id) {
     Product entity = productRepository.findById(id);
     if (entity == null) {
-      throw new WebApplicationException("Product with id of " + id + " does not exist.", 404);
+      throw new WebApplicationException("Product with id of " + id + " does not exist.", Response.Status.NOT_FOUND);
     }
     return entity;
   }
@@ -53,7 +53,7 @@ public class ProductResource {
     }
 
     productRepository.persist(product);
-    return Response.ok(product).status(201).build();
+    return Response.ok(product).status(Response.Status.CREATED).build();
   }
 
   @PUT
@@ -67,7 +67,7 @@ public class ProductResource {
     Product entity = productRepository.findById(id);
 
     if (entity == null) {
-      throw new WebApplicationException("Product with id of " + id + " does not exist.", 404);
+      throw new WebApplicationException("Product with id of " + id + " does not exist.", Response.Status.NOT_FOUND);
     }
 
     entity.name = product.name;
@@ -86,10 +86,10 @@ public class ProductResource {
   public Response delete(Long id) {
     Product entity = productRepository.findById(id);
     if (entity == null) {
-      throw new WebApplicationException("Product with id of " + id + " does not exist.", 404);
+      throw new WebApplicationException("Product with id of " + id + " does not exist.", Response.Status.NOT_FOUND);
     }
     productRepository.delete(entity);
-    return Response.status(204).build();
+    return Response.status(Response.Status.NO_CONTENT).build();
   }
 
   @Provider
